@@ -1,0 +1,66 @@
+const test = require('ava')
+
+const wordDiff = require('../lib/wordDiff')
+
+const deleted = diffs => diffs.filter(([operation]) => operation === -1).map(([, value]) => value).join('')
+const inserted = diffs => diffs.filter(([operation]) => operation === 1).map(([, value]) => value).join('')
+const unchanged = diffs => diffs.filter(([operation]) => operation === 0).map(([, value]) => value).join('')
+
+function checkReconstruction (t, actual, expected, diffs) {
+  t.is(diffs.filter(([operation]) => operation !== 1).map(([, value]) => value).join(''), actual)
+  t.is(diffs.filter(([operation]) => operation !== -1).map(([, value]) => value).join(''), expected)
+}
+
+test('keeps short changed words intact, including standalone words', t => {
+  t.deepEqual(wordDiff('bar', 'baz'), [[-1, 'bar'], [1, 'baz']])
+  const diffs = wordDiff('The color is blue', 'The colour is blue')
+  t.is(deleted(diffs), 'color')
+  t.is(inserted(diffs), 'colour')
+})
+
+test('refines long words alongside changed punctuation and whitespace', t => {
+  const prefix = 'extraordinarilyLongIdentifierPrefix'
+  const actual = `${prefix}A, red`
+  const expected = `${prefix}Z;\tbed`
+  const diffs = wordDiff(actual, expected)
+  checkReconstruction(t, actual, expected, diffs)
+  t.true(unchanged(diffs).includes(prefix))
+  t.true(deleted(diffs).includes('red'))
+  t.true(inserted(diffs).includes('bed'))
+  t.false(deleted(diffs).includes(prefix))
+  t.false(inserted(diffs).includes(prefix))
+})
+
+test('keeps the thirty-code-point boundary and handles astral letters', t => {
+  const prefix = '\u{10400}'.repeat(29)
+  t.deepEqual(wordDiff(`${prefix}a`, `${prefix}b`), [[-1, `${prefix}a`], [1, `${prefix}b`]])
+  const longPrefix = `${prefix}\u{10400}`
+  const actual = `${longPrefix}a`
+  const expected = `${longPrefix}b`
+  const diffs = wordDiff(actual, expected)
+  checkReconstruction(t, actual, expected, diffs)
+  t.is(unchanged(diffs), longPrefix)
+  t.is(deleted(diffs), 'a')
+  t.is(inserted(diffs), 'b')
+})
+
+test('preserves combining marks, whitespace, emoji and punctuation', t => {
+  const actual = 'cafe\u0301 chaud\t🙂,x'
+  const expected = 'caffe\u0300 chaud  🙃;x'
+  const diffs = wordDiff(actual, expected)
+  checkReconstruction(t, actual, expected, diffs)
+  t.true(deleted(diffs).includes('cafe\u0301'))
+  t.true(inserted(diffs).includes('caffe\u0300'))
+})
+
+test('reconstructs empty, equal and inserted lines', t => {
+  for (const [actual, expected] of [['', ''], ['', 'hello'], ['hello', ''], ['same', 'same']]) {
+    checkReconstruction(t, actual, expected, wordDiff(actual, expected))
+  }
+})
+
+test('falls back without corrupting inputs when marker space is exhausted', t => {
+  const actual = Array.from({ length: 64000 }, (_, index) => `word${index}`).join(' ')
+  const expected = `${actual} extra`
+  checkReconstruction(t, actual, expected, wordDiff(actual, expected))
+})
