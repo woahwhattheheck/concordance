@@ -81,6 +81,29 @@ test('keeps neighboring Latin words atomic and CJK combining marks intact', t =>
   t.is(inserted(annotated), '語')
 })
 
+test('keeps emoji modifier and ZWJ families intact as diff atoms', t => {
+  const actual = 'Write 👩🏽‍💻 code with 👨‍👩‍👧'
+  const expected = 'Write 👨🏽‍💻 code with 👩‍👧‍👦'
+  const diffs = wordDiff(actual, expected)
+  checkReconstruction(t, actual, expected, diffs)
+  t.true(deleted(diffs).includes('👩🏽‍💻'))
+  t.true(inserted(diffs).includes('👨🏽‍💻'))
+  t.true(deleted(diffs).includes('👨‍👩‍👧'))
+  t.true(inserted(diffs).includes('👩‍👧‍👦'))
+  t.false(unchanged(diffs).includes('‍'))
+})
+
+test('preserves paired regional flag symbols and emoji variation selectors', t => {
+  const actual = 'Shipping 🇺🇸 ❤️'
+  const expected = 'Shipping 🇨🇦 💔'
+  const diffs = wordDiff(actual, expected)
+  checkReconstruction(t, actual, expected, diffs)
+  t.true(deleted(diffs).includes('🇺🇸'))
+  t.true(inserted(diffs).includes('🇨🇦'))
+  t.true(deleted(diffs).includes('❤️'))
+  t.true(inserted(diffs).includes('💔'))
+})
+
 test('reconstructs empty, equal and inserted lines', t => {
   for (const [actual, expected] of [['', ''], ['', 'hello'], ['hello', ''], ['same', 'same']]) {
     checkReconstruction(t, actual, expected, wordDiff(actual, expected))
