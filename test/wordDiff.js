@@ -44,6 +44,17 @@ test('keeps the thirty-code-point boundary and handles astral letters', t => {
   t.is(inserted(diffs), 'b')
 })
 
+test('keeps combining marks attached while refining long words', t => {
+  const prefix = 'longIdentifierPrefix'.repeat(2)
+  const actual = `${prefix}e\u0301`
+  const expected = `${prefix}a\u0301`
+  const diffs = wordDiff(actual, expected)
+  checkReconstruction(t, actual, expected, diffs)
+  t.is(unchanged(diffs), prefix)
+  t.is(deleted(diffs), 'e\u0301')
+  t.is(inserted(diffs), 'a\u0301')
+})
+
 test('preserves combining marks, whitespace, emoji and punctuation', t => {
   const actual = 'cafe\u0301 chaud\t🙂,x'
   const expected = 'caffe\u0300 chaud  🙃;x'
