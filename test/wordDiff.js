@@ -104,6 +104,16 @@ test('preserves paired regional flag symbols and emoji variation selectors', t =
   t.true(inserted(diffs).includes('💔'))
 })
 
+test('keeps emoji subdivision tag sequences intact as diff atoms', t => {
+  const england = '\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}'
+  const scotland = '\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}'
+  const diffs = wordDiff(`Regional ${england}`, `Regional ${scotland}`)
+  checkReconstruction(t, `Regional ${england}`, `Regional ${scotland}`, diffs)
+  t.is(deleted(diffs), england)
+  t.is(inserted(diffs), scotland)
+  t.false(unchanged(diffs).includes('\u{E0067}'))
+})
+
 test('reconstructs empty, equal and inserted lines', t => {
   for (const [actual, expected] of [['', ''], ['', 'hello'], ['hello', ''], ['same', 'same']]) {
     checkReconstruction(t, actual, expected, wordDiff(actual, expected))
