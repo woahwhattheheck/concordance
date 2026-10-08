@@ -53,6 +53,34 @@ test('preserves combining marks, whitespace, emoji and punctuation', t => {
   t.true(inserted(diffs).includes('caffe\u0300'))
 })
 
+test('preserves matching CJK characters instead of replacing whole phrases', t => {
+  const actual = '我喜欢苹果'
+  const expected = '我喜欢香蕉'
+  const diffs = wordDiff(actual, expected)
+  checkReconstruction(t, actual, expected, diffs)
+  t.is(unchanged(diffs), '我喜欢')
+  t.is(deleted(diffs), '苹果')
+  t.is(inserted(diffs), '香蕉')
+})
+
+test('keeps neighboring Latin words atomic and CJK combining marks intact', t => {
+  const latinActual = 'save設定Alpha'
+  const latinExpected = 'save設定Beta'
+  const mixed = wordDiff(latinActual, latinExpected)
+  checkReconstruction(t, latinActual, latinExpected, mixed)
+  t.is(unchanged(mixed), 'save設定')
+  t.is(deleted(mixed), 'Alpha')
+  t.is(inserted(mixed), 'Beta')
+
+  const annotatedActual = '漢\u0301字'
+  const annotatedExpected = '漢\u0301語'
+  const annotated = wordDiff(annotatedActual, annotatedExpected)
+  checkReconstruction(t, annotatedActual, annotatedExpected, annotated)
+  t.is(unchanged(annotated), '漢\u0301')
+  t.is(deleted(annotated), '字')
+  t.is(inserted(annotated), '語')
+})
+
 test('reconstructs empty, equal and inserted lines', t => {
   for (const [actual, expected] of [['', ''], ['', 'hello'], ['hello', ''], ['same', 'same']]) {
     checkReconstruction(t, actual, expected, wordDiff(actual, expected))
